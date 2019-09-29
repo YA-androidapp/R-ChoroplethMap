@@ -1,6 +1,6 @@
 update.packages(ask = FALSE)
 
-shape_path = "13tokyo/h27ka13.shp"
+shape_path = "data/h27ka13.shp"
 
 
 
