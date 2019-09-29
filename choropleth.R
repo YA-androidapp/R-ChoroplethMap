@@ -2,6 +2,8 @@ update.packages(ask = FALSE)
 
 shape_path = "data/h27ka13.shp"
 
+setwd("~/GitHub/R-ChoroplethMap")
+
 
 
 # sf package
@@ -28,16 +30,40 @@ install.packages("rgdal", dependencies = T)
 library(leaflet)
 library(rgdal)
 
-shape <- readOGR(shape_path, stringsAsFactors = FALSE, encoding = "UTF-8")
+shape <-
+  readOGR(shape_path, stringsAsFactors = FALSE, encoding = "UTF-8")
 head(shape@data)
 
-shape %>% 
-  leaflet() %>% 
-  addTiles() %>% 
-  setView(lat = 35.65, lng = 139.75, zoom = 12) %>% 
-  addProviderTiles(providers$CartoDB.Positron) %>% 
-  addPolygons(fillOpacity = 0.5,
-              weight = 1,
-              fillColor = "lightblue")
+population_density <-
+  as.numeric(shape@data$JINKO) / shape@data$AREA * 1000000 # 単位面積1 km2当たり人口密度
+household_density <-
+  as.numeric(shape@data$SETAI) / shape@data$AREA * 1000000 # 単位面積1 km2当たり世帯密度
 
-#TODO
+color_pallet <-
+  colorNumeric("Blues", domain = population_density, reverse = F)
+labels <- sprintf("<strong>%s</strong><br/>%5.1f",
+                  paste0(shape@data$MOJI),
+                  population_density) %>% lapply(htmltools::HTML)
+shape %>%
+  leaflet() %>%
+  setView(lat = 35.65, lng = 139.75, zoom = 12) %>% # 初期表示
+  addProviderTiles(providers$CartoDB.Positron) %>% # ベースマップ
+  addPolygons(
+    fillOpacity = 0.7,
+    weight = 1,
+    color = "#666",
+    fillColor = ~ color_pallet(population_density),
+    label = labels,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto"
+    )
+  ) %>%
+  # 凡例
+  addLegend(
+    "bottomright",
+    pal = color_pallet,
+    values = ~ population_density,
+    title = "人口密度"
+  )
