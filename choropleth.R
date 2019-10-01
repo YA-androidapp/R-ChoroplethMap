@@ -1,6 +1,7 @@
 update.packages(ask = FALSE)
 
-shape_path = "data/h27ka13.shp"
+shape_path = "shape/h27ka13.shp"
+data_path = "data/H30.csv"
 
 setwd("~/GitHub/R-ChoroplethMap")
 

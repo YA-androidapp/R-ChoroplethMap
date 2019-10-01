@@ -3,6 +3,7 @@
 *.shp
 *.shx
 data/
+shape/
 
 # History files
 .Rhistory
