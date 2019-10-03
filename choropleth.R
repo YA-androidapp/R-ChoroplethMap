@@ -1,4 +1,4 @@
-update.packages(ask = FALSE)
+# update.packages(ask = FALSE)
 
 shape_path = "shape/h27ka13.shp"
 data_path = "data/H30.csv"
@@ -9,8 +9,8 @@ setwd("~/GitHub/R-ChoroplethMap")
 
 # sf package
 
-install.packages("ggplot2", dependencies = T)
-install.packages("sf", dependencies = T)
+# install.packages("ggplot2", dependencies = T)
+# install.packages("sf", dependencies = T)
 
 library(ggplot2)
 library(sf)
@@ -24,27 +24,42 @@ ggplot(map) + geom_sf()
 
 # leaflet
 
-install.packages("httpuv", dependencies = T)
-install.packages("leaflet", dependencies = T)
-install.packages("rgdal", dependencies = T)
+# install.packages("httpuv", dependencies = T)
+# install.packages("leaflet", dependencies = T)
+# install.packages("rgdal", dependencies = T)
 
 library(leaflet)
 library(rgdal)
 
 shape <-
   readOGR(shape_path, stringsAsFactors = FALSE, encoding = "UTF-8")
+shape@data$市区町丁 <- paste0(shape@data$CITY_NAME, ifelse(is.na(shape@data$S_NAME),"",shape@data$S_NAME))
 head(shape@data)
 
-population_density <-
-  as.numeric(shape@data$JINKO) / shape@data$AREA * 1000000 # 単位面積1 km2当たり人口密度
-household_density <-
-  as.numeric(shape@data$SETAI) / shape@data$AREA * 1000000 # 単位面積1 km2当たり世帯密度
+datacsv <- read.csv(data_path, stringsAsFactors = FALSE, fileEncoding = "UTF-8")
+head(datacsv)
+
+library(dplyr)
+joined <- left_join(shape@data, datacsv, by = "市区町丁") # キーにしたい列名が異なる場合: by = c("CITY_NAME" = "市区町丁")
+
+nrow(shape@data)
+nrow(datacsv)
+nrow(joined)
+
+# population_density <-
+#   as.numeric(shape@data$JINKO) / shape@data$AREA * 1000000 # 単位面積1 km2当たり人口密度
+# household_density <-
+#   as.numeric(shape@data$SETAI) / shape@data$AREA * 1000000 # 単位面積1 km2当たり世帯密度
+
+crimecase_density <-
+  as.numeric(joined$総合計) / joined$AREA * 1000000 # 単位面積1 km2当たり認知件数
+crimecase_density[is.na(crimecase_density)] <- 0
 
 color_pallet <-
-  colorNumeric("Blues", domain = population_density, reverse = F)
+  colorNumeric("Blues", domain = crimecase_density, reverse = F)
 labels <- sprintf("<strong>%s</strong><br/>%5.1f",
-                  paste0(shape@data$MOJI),
-                  population_density) %>% lapply(htmltools::HTML)
+                  paste0(joined$MOJI),
+                  crimecase_density) %>% lapply(htmltools::HTML)
 shape %>%
   leaflet() %>%
   setView(lat = 35.65, lng = 139.75, zoom = 12) %>% # 初期表示
@@ -53,7 +68,7 @@ shape %>%
     fillOpacity = 0.7,
     weight = 1,
     color = "#666",
-    fillColor = ~ color_pallet(population_density),
+    fillColor = ~ color_pallet(crimecase_density),
     label = labels,
     labelOptions = labelOptions(
       style = list("font-weight" = "normal", padding = "3px 8px"),
@@ -61,10 +76,10 @@ shape %>%
       direction = "auto"
     )
   ) %>%
-  # 凡例
+  # TODO: 凡例
   addLegend(
     "bottomright",
     pal = color_pallet,
-    values = ~ population_density,
-    title = "人口密度"
+    values = ~ crimecase_density,
+    title = "1km2当たり認知件数"
   )
