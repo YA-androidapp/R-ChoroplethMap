@@ -24,42 +24,60 @@ ggplot(map) + geom_sf()
 
 # leaflet
 
+# install.packages("dplyr", dependencies = T)
 # install.packages("httpuv", dependencies = T)
 # install.packages("leaflet", dependencies = T)
 # install.packages("rgdal", dependencies = T)
 
+library(dplyr)
 library(leaflet)
 library(rgdal)
 
 shape <-
   readOGR(shape_path, stringsAsFactors = FALSE, encoding = "UTF-8")
-shape@data$市区町丁 <- paste0(shape@data$CITY_NAME, ifelse(is.na(shape@data$S_NAME),"",shape@data$S_NAME))
+shape@data$市区町丁  <-
+  paste0(shape@data$CITY_NAME, ifelse(is.na(shape@data$S_NAME), "", shape@data$S_NAME))
 head(shape@data)
 
-datacsv <- read.csv(data_path, stringsAsFactors = FALSE, fileEncoding = "UTF-8")
+datacsv <-
+  read.csv(data_path,
+           stringsAsFactors = FALSE,
+           fileEncoding = "UTF-8")
 head(datacsv)
 
-library(dplyr)
-joined <- left_join(shape@data, datacsv, by = "市区町丁") # キーにしたい列名が異なる場合: by = c("CITY_NAME" = "市区町丁")
+joined <-
+  left_join(shape@data, datacsv, by = "市区町丁") # キーにしたい列名が異なる場合: by = c("CITY_NAME" = "市区町丁")
 
 nrow(shape@data)
 nrow(datacsv)
 nrow(joined)
 
-# population_density <-
-#   as.numeric(shape@data$JINKO) / shape@data$AREA * 1000000 # 単位面積1 km2当たり人口密度
-# household_density <-
-#   as.numeric(shape@data$SETAI) / shape@data$AREA * 1000000 # 単位面積1 km2当たり世帯密度
+population_density <-
+  as.numeric(shape@data$JINKO) / shape@data$AREA * 1000000 # 単位面積1 km2当たり人口密度
+household_density <-
+  as.numeric(shape@data$SETAI) / shape@data$AREA * 1000000 # 単位面積1 km2当たり世帯密度
 
 crimecase_density <-
   as.numeric(joined$総合計) / joined$AREA * 1000000 # 単位面積1 km2当たり認知件数
-crimecase_density[is.na(crimecase_density)] <- 0
+
+# data_density <- population_density
+# data_density <- household_density
+data_density <- crimecase_density
+
+
+# 欠損値(NA)を0で置換する
+data_density[is.na(data_density)] <- 0
 
 color_pallet <-
-  colorNumeric("Blues", domain = crimecase_density, reverse = F)
+  # colorNumeric("Blues", domain = data_density, reverse = F) # 連続量を塗り分け
+  colorQuantile("Blues",
+                domain = data_density,
+                reverse = F,
+                n = 8) # 分位数で塗り分け
+
 labels <- sprintf("<strong>%s</strong><br/>%5.1f",
                   paste0(joined$MOJI),
-                  crimecase_density) %>% lapply(htmltools::HTML)
+                  data_density) %>% lapply(htmltools::HTML)
 shape %>%
   leaflet() %>%
   setView(lat = 35.65, lng = 139.75, zoom = 12) %>% # 初期表示
@@ -68,7 +86,7 @@ shape %>%
     fillOpacity = 0.7,
     weight = 1,
     color = "#666",
-    fillColor = ~ color_pallet(crimecase_density),
+    fillColor = ~ color_pallet(data_density),
     label = labels,
     labelOptions = labelOptions(
       style = list("font-weight" = "normal", padding = "3px 8px"),
@@ -76,10 +94,10 @@ shape %>%
       direction = "auto"
     )
   ) %>%
-  # TODO: 凡例
+  # 凡例
   addLegend(
     "bottomright",
     pal = color_pallet,
-    values = ~ crimecase_density,
+    values = ~ data_density,
     title = "1km2当たり認知件数"
   )
