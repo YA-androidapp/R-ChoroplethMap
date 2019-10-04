@@ -58,7 +58,7 @@ household_density <-
   as.numeric(shape@data$SETAI) / shape@data$AREA * 1000000 # 単位面積1 km2当たり世帯密度
 
 crimecase_density <-
-  as.numeric(joined$総合計) / joined$AREA * 1000000 # 単位面積1 km2当たり認知件数
+  as.numeric(joined$総合計) / as.numeric(shape@data$JINKO) * 100000 # 人口100000人当たり認知件数
 
 # data_density <- population_density
 # data_density <- household_density
@@ -99,5 +99,5 @@ shape %>%
     "bottomright",
     pal = color_pallet,
     values = ~ data_density,
-    title = "1km2当たり認知件数"
+    title = "人口100000人当たり認知件数"
   )
